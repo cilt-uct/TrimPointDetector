@@ -8,6 +8,6 @@ pyAudioAnalysis (https://github.com/tyiannak/pyAudioAnalysis)
 To run:
 
 ```
-python detectTrimpoints.py audio.wav
+python detectTrimpoints.py /path/to/audio-file.wav
 
 ```
