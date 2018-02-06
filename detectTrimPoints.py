@@ -6,15 +6,15 @@ import sklearn.cluster
 import time
 import scipy
 import os
-import audioFeatureExtraction as aF
-import audioTrainTest as aT
-import audioBasicIO
+from pyAudioAnalysis import audioFeatureExtraction as aF
+from pyAudioAnalysis import audioTrainTest as aT
+from pyAudioAnalysis import audioBasicIO
 import matplotlib.pyplot as plt
 from scipy.spatial import distance
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import sklearn.discriminant_analysis
-import audioSegmentation as aS
+from pyAudioAnalysis import audioSegmentation as aS
 import itertools as it
 
 def usage():
@@ -27,7 +27,7 @@ if len(sys.argv) > 1:
     if not os.path.isfile(inputWavFile):
         print "Cannot locate audio file " + inputWavFile
 
-    modelName = "model/svmFinalAll"
+    modelName = "model/svmModel"
     if not os.path.isfile(modelName):
         print "Cannot locate model file " + modelName
 
