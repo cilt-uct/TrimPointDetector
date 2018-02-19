@@ -1,0 +1,12 @@
+# OS X #
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+.idea
+*.swp
+*.bak
+pyAudioAnalysis/
+qa/
+test.*

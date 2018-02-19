@@ -21,9 +21,8 @@ import contextlib
 import time
 
 def usage():
-    print "This script requires an audio file as a parameter"
-    print "\n"
-    print "eg. detect"
+    print "Audio Trim point detector build UCT Feb 14 2018 14:41\n"
+    print "Usage: detectTrimPoints_woh.py <input audio wave file> <output text file> <use non-speech> <threshold>"
 
 if len(sys.argv) > 1:
 
@@ -31,7 +30,7 @@ if len(sys.argv) > 1:
     outputTextFile = sys.argv[2]
 
     speech  = 1 # ALWAYS
-    non_speech = sys.argv[3] 
+    non_speech = int(sys.argv[3])
 
     threshold = int(sys.argv[4]) # 1:30
     start_time = time.time() 	
@@ -84,6 +83,7 @@ if len(sys.argv) > 1:
             stats[2] += 1
             stats[3] += diff
 
+	#print "%r - %r - %r \n" % ((non_speech == 0), (str(classes[s]) == "non-speech"), (diff >= threshold))
 	if (non_speech == 0) and (str(classes[s]) == "non-speech") and (diff >= threshold):
 		#print str(int(segment[0])*1000) +"-"+ str(int(segment[1])*1000)  + " : " + str(classes[s]) + " (" + str(diff) + ")\n"
 		segment_start = int(segment[0])*1000
@@ -126,10 +126,10 @@ if len(sys.argv) > 1:
     print('audio_trim_segments_notspeech_no=' + str(int(stats[2])) +'\n')
     print('audio_trim_segments_notspeech_ms=' + str(int(stats[3]) * 1000) +'\n')
     print("audio_trim_exec_time=%s\n" % round((time.time() - start_time), 3))
-    '''
-    #print(stats)
-    #print(str(len(output_arr)) +'\n')
     
+    print(stats)
+    print(str(len(output_arr)) +'\n')
+    '''
 
     f = open(outputTextFile, 'w')
     #f.write('audio_trim_file=' + inputWavFile +'\n')
@@ -144,9 +144,9 @@ if len(sys.argv) > 1:
     f.write("audio_trim_exec_time=%s\n" % round((time.time() - start_time), 3))
     f.close()
 
-'''
+
 else:
     usage()
     sys.exit(os.EX_USAGE)
-'''
+
 sys.exit(os.EX_OK) # code 0, all ok
