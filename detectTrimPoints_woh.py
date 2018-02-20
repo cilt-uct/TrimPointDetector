@@ -24,16 +24,23 @@ def usage():
     print "Audio Trim point detector build UCT Feb 14 2018 14:41\n"
     print "Usage: detectTrimPoints_woh.py <input audio wave file> <output text file> <use non-speech> <threshold>"
 
+class Segment(object):
+
+    def __init__(self, start, end, classification):
+        self.start = int(start)
+        self.end = int(end)
+        self.diff = int(end) - int(start)
+        self.classification = str(classification)
+
 if len(sys.argv) > 1:
 
     inputWavFile = sys.argv[1]
     outputTextFile = sys.argv[2]
 
-    speech  = 1 # ALWAYS
-    non_speech = int(sys.argv[3])
-
+    threshold_speech = int(sys.argv[3]) # 5
     threshold = int(sys.argv[4]) # 1:30
-    start_time = time.time() 	
+
+    start_time = time.time()     
 
     if not os.path.isfile(inputWavFile):
         print "Cannot locate audio file " + inputWavFile
@@ -42,111 +49,115 @@ if len(sys.argv) > 1:
     if not os.path.isfile(modelName):
         print "Cannot locate model file " + modelName
 
-    modelType = "svm"
-    gtFile = ""
-    returnVal = aS.mtFileClassification(inputWavFile, modelName, modelType, False, gtFile)
-    flagsInd = returnVal[0]
-    classNames = returnVal[1]
-
-    flags = [classNames[int(f)] for f in flagsInd]
-    (segs, classes) = aS.flags2segs(flags, 1)
-
-    reversed_segs = segs[::-1]
-    reversed_classes = classes[::-1]
-
     # get the duration of the wave file
     audio_trim_duration = 0
+    audio_trim_hour = 0
     with contextlib.closing(wave.open(inputWavFile,'r')) as f:
         frames = f.getnframes()
         rate = f.getframerate()
         duration = frames / float(rate)
         audio_trim_duration = int(duration*1000)
-
-    output_arr = []
-    step = "none"
-    segment_prev = 0
+        audio_trim_hour = 1 if (int(duration) < 3700) else 0
     
-    stats = [0,0, 0,0] #numpy.zeros((2, 2))
-
-
-    #print "\n"
-    for s in range(len(segs)):
-	segment = segs[s]
-        diff = int(segment[1]) - int(segment[0])
-	#print str(int(segment[0])*1000) +"-"+ str(int(segment[1])*1000)  + " : " + str(classes[s]) + " (" + str(diff) + ")\n"
-
-        if (str(classes[s]) == "speech"):
-            stats[0] += 1
-            stats[1] += diff        
-
-        if (str(classes[s]) == "non-speech"):
-            stats[2] += 1
-            stats[3] += diff
-
-	#print "%r - %r - %r \n" % ((non_speech == 0), (str(classes[s]) == "non-speech"), (diff >= threshold))
-	if (non_speech == 0) and (str(classes[s]) == "non-speech") and (diff >= threshold):
-		#print str(int(segment[0])*1000) +"-"+ str(int(segment[1])*1000)  + " : " + str(classes[s]) + " (" + str(diff) + ")\n"
-		segment_start = int(segment[0])*1000
-		segment_end = int(segment[1])*1000
-
-		#print ("step: " + step)
-		if (step == "none") and (segment_start >= 5000):
-			# first segment 0 - A
-			output_arr.append(0)
-		
-		if (segment_start - segment_prev <= 10000):
-			# means that the next chatter/other segment is less than 10 seconds from start of this segment
-			# remove the end of the previous segment and add it to this one
-			#print ("arr: " + str(output_arr.count()))
-			if (len(output_arr) >= 1):
-                               output_arr.pop()
-		else:	
-			output_arr.append(segment_start)
-		
-		if (audio_trim_duration - segment_end >= 5000):
-			# if the end is further away than 5 seconds then we can use this end point
-			output_arr.append(segment_end)
-		#else:
-		#	output_arr.append(audio_trim_duration)
-
-		segment_prev = segment_end
-	       	step = str(classes[s])
-
-    if (len(output_arr) == 0):
-	output_arr.append(0)
-	output_arr.append(audio_trim_duration);
-    '''
-    print('audio_trim_file=' + inputWavFile +'\n')
-    print('audio_trim_out_file=' + outputTextFile +'\n')
-    print('audio_trim_duration=' + str(audio_trim_duration) +'\n')
-    print('audio_trim_segments=' + str(';'.join(str(e) for e in output_arr)) +'\n')
-    print('audio_trim_segments_no=' + str(len(segs)) +'\n')
-    print('audio_trim_segments_speech_no=' + str(int(stats[0])) +'\n')
-    print('audio_trim_segments_speech_ms=' + str(int(stats[1]) * 1000) +'\n')
-    print('audio_trim_segments_notspeech_no=' + str(int(stats[2])) +'\n')
-    print('audio_trim_segments_notspeech_ms=' + str(int(stats[3]) * 1000) +'\n')
-    print("audio_trim_exec_time=%s\n" % round((time.time() - start_time), 3))
+    my_segments = []
     
-    print(stats)
-    print(str(len(output_arr)) +'\n')
-    '''
+    if (audio_trim_hour == 1):
+        modelType = "svm"
+        gtFile = ""
+        returnVal = aS.mtFileClassification(inputWavFile, modelName, modelType, False, gtFile)
+        flagsInd = returnVal[0]
+        classNames = returnVal[1]
 
+        flags = [classNames[int(f)] for f in flagsInd]
+        (segs, classes) = aS.flags2segs(flags, 1)
+
+        for s in range(len(segs)):
+            sg = segs[s]
+            #print str(int(sg[0])*1000) +"-"+ str(int(sg[1])*1000)  + " : " + str(classes[s]) + "\n"
+            my_segments.append(Segment(int(sg[0]), int(sg[1]), str(classes[s])))
+
+    #print(len(my_segments))
+
+    segments_A = filter(lambda x: x.classification == "speech", my_segments)
+    segments_A.sort(key=lambda x: x.end)
+
+    segments_AC = filter(lambda x: x.diff >= threshold_speech, segments_A)
+    segments_AC.sort(key=lambda x: x.end)
+
+    final_list = []
+    last_speech = int(audio_trim_duration / 1000)
+    if len(segments_A) > 2:
+        final_list.append(segments_AC[0].start)
+        final_list.append(segments_AC[-1].end + 10)
+        last_speech = segments_AC[-1].end
+    else:
+        final_list.append(1)
+        final_list.append(last_speech - 1)
+
+
+    segments_B = filter(lambda x: x.classification == "non-speech", my_segments)
+    segments_B.sort(key=lambda x: x.end)
+
+    segments_BC = filter(lambda x: (x.diff >= threshold) and (x.start >= final_list[0]) and (x.end < final_list[-1]), segments_B)
+    segments_BC.sort(key=lambda x: x.end)
+
+    stats = {
+        'len': len(my_segments),
+        'hour': audio_trim_hour, 'duration': audio_trim_duration,
+        'speech_no': len(segments_A), 'speech_ms': sum(c.diff for c in segments_A), 
+        'nonspeech_no': len(segments_B), 'nonspeech_ms': sum(c.diff for c in segments_B),
+        'nonspeech_used_no': len(segments_BC), 'nonspeech_used_ms': sum(c.diff for c in segments_BC)
+    }
+   
+    for c in segments_BC:
+        final_list.append(c.start)
+        final_list.append(c.end)
+
+    # remove duplicates
+    final_list = set(final_list)
+    final_list = list(final_list)
+    final_list.sort()
+    
+    # first segment is always a second from the start...
+    if (final_list[0] == 0):
+        final_list[0] = 1
+    
+    if (final_list[-1] == int(audio_trim_duration / 1000)):
+        final_list[-1] = int(audio_trim_duration / 1000) - 1
+
+    stats['good_start'] = final_list[0] < 300
+    stats['good_end'] = final_list[-1] + 600 > int(audio_trim_duration / 1000) 
+
+    final_list = map(lambda x: x * 1000, final_list)
+
+    ''' 
+    print (stats)
+    print(str(';'.join(str(e) for e in final_list)))
+    '''
+    
     f = open(outputTextFile, 'w')
     #f.write('audio_trim_file=' + inputWavFile +'\n')
     #f.write('audio_trim_out_file=' + outputTextFile +'\n')
-    f.write('audio_trim_duration=' + str(audio_trim_duration) +'\n')
-    f.write('audio_trim_segments=' + str(';'.join(str(e) for e in output_arr)) +'\n')
-    f.write('audio_trim_segments_no=' + str(len(segs)) +'\n')
-    f.write('audio_trim_segments_speech_no=' + str(int(stats[0])) +'\n')
-    f.write('audio_trim_segments_speech_ms=' + str(int(stats[1]) * 1000) +'\n')
-    f.write('audio_trim_segments_notspeech_no=' + str(int(stats[2])) +'\n')
-    f.write('audio_trim_segments_notspeech_ms=' + str(int(stats[3]) * 1000) +'\n')
+    f.write('audio_trim_duration=' + str(stats['duration']) +'\n')
+    f.write('audio_trim_ishour=' + ("true" if (stats['hour'] <= 1) else "false") +'\n')
+    f.write('audio_trim_good_start=' + ("true" if (stats['good_start'] <= 1) else "false") +'\n')
+    f.write('audio_trim_good_end=' + ("true" if (stats['good_end'] <= 1) else "false") +'\n')
+    f.write('audio_trim_segments=' + str(';'.join(str(e) for e in final_list)) +'\n')
+    f.write('audio_trim_segments_no=' + str(int(stats['len'])) +'\n')
+    f.write('audio_trim_segments_speech_no=' + str(int(stats['speech_no'])) +'\n')
+    f.write('audio_trim_segments_speech_ms=' + str(int(stats['speech_ms']) * 1000) +'\n')
+    f.write('audio_trim_segments_notspeech_no=' + str(int(stats['nonspeech_no'])) +'\n')
+    f.write('audio_trim_segments_notspeech_ms=' + str(int(stats['nonspeech_ms']) * 1000) +'\n')
+    f.write('audio_trim_segments_notspeech_used_no=' + str(int(stats['nonspeech_used_no'])) +'\n')
+    f.write('audio_trim_segments_notspeech_used_ms=' + str(int(stats['nonspeech_used_ms']) * 1000) +'\n')
     f.write("audio_trim_exec_time=%s\n" % round((time.time() - start_time), 3))
     f.close()
-
+    
 
 else:
     usage()
     sys.exit(os.EX_USAGE)
 
 sys.exit(os.EX_OK) # code 0, all ok
+
+
