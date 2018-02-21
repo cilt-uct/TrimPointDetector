@@ -19,10 +19,7 @@ import itertools as it
 import wave
 import contextlib
 import time
-
-def usage():
-    print "Audio Trim point detector build UCT Feb 14 2018 14:41\n"
-    print "Usage: detectTrimPoints_woh.py <input audio wave file> <output text file> <use non-speech> <threshold>"
+import argparse
 
 class Segment(object):
 
@@ -32,132 +29,151 @@ class Segment(object):
         self.diff = int(end) - int(start)
         self.classification = str(classification)
 
-if len(sys.argv) > 1:
+parser = argparse.ArgumentParser(description='Audio Trim point detector')
+parser.add_argument('--version', action='version', version='Audio Trim point detector build UCT Feb 21 2018 10:49')
 
-    inputWavFile = sys.argv[1]
-    outputTextFile = sys.argv[2]
+parser.add_argument('-i', '--input', dest='inputWavFile', type=str, required=True, metavar="wav",
+                    help='The wav file to detect trimpoints from')
+parser.add_argument('-o', '--output', dest='outputTextFile', type=str, required=True, metavar="txt",
+                    help='The file to write the properties in')
 
-    threshold_speech = int(sys.argv[3]) # 5
-    threshold = int(sys.argv[4]) # 1:30
+parser.add_argument('--start-speech', dest='theshold_speech_start', type=int, default=3, metavar="(seconds)",
+                    help='Threshold for speech at the start of the recording [sec] (default: 3)') 
+parser.add_argument('--end-speech', dest='threshold_speech_end', type=int, default=5, metavar="(seconds)",
+                    help='Threshold value for speech at the end of the recording [sec] (default: 5)')
 
-    start_time = time.time()     
+parser.add_argument('--non-speech', dest='threshold', type=int, default=90, metavar="(seconds)",
+                    help='Threshold value for non-speech segments [sec] (default: 90)')
 
-    if not os.path.isfile(inputWavFile):
-        print "Cannot locate audio file " + inputWavFile
+parser.add_argument('--end-adjust', dest='adjust_speech', type=int, default=10, metavar="(seconds)",
+                    help='Move the last speech segments end time longer by a number of seconds [sec] (default: 10)')
 
-    modelName = "model/svmModel"
-    if not os.path.isfile(modelName):
-        print "Cannot locate model file " + modelName
+parser.add_argument('--start-buffer', dest='buffer_start', type=int, default=1, metavar="(seconds)",
+                    help='If the start of the segment list is 0 then use this buffer [sec] (default: 1)')
+parser.add_argument('--end-buffer', dest='buffer_end', type=int, default=1, metavar="(seconds)",
+                    help='If the last segment ends at the end of the wav file adjust by this buffer [sec] (default: 1)')
 
-    # get the duration of the wave file
-    audio_trim_duration = 0
-    audio_trim_hour = 0
-    with contextlib.closing(wave.open(inputWavFile,'r')) as f:
-        frames = f.getnframes()
-        rate = f.getframerate()
-        duration = frames / float(rate)
-        audio_trim_duration = int(duration*1000)
-        audio_trim_hour = 1 if (int(duration) < 3700) else 0
-    
-    my_segments = []
-    
-    if (audio_trim_hour == 1):
-        modelType = "svm"
-        gtFile = ""
-        returnVal = aS.mtFileClassification(inputWavFile, modelName, modelType, False, gtFile)
-        flagsInd = returnVal[0]
-        classNames = returnVal[1]
+parser.add_argument('--good-start', dest='good_start', type=int, default=300, metavar="(seconds)",
+                    help='Does the first segment start within this number of seconds, if true then good start [sec] (default: 300 = 5min)')
+parser.add_argument('--good-end', dest='good_end', type=int, default=600, metavar="(seconds)",
+                    help='Does the last segment end within this number of seconds, if true then good end [sec] (default: 600 = 10min)')
 
-        flags = [classNames[int(f)] for f in flagsInd]
-        (segs, classes) = aS.flags2segs(flags, 1)
+args = vars(parser.parse_args())
+start_time = time.time()     
 
-        for s in range(len(segs)):
-            sg = segs[s]
-            #print str(int(sg[0])*1000) +"-"+ str(int(sg[1])*1000)  + " : " + str(classes[s]) + "\n"
-            my_segments.append(Segment(int(sg[0]), int(sg[1]), str(classes[s])))
+if not os.path.isfile(args['inputWavFile']):
+    print "Cannot locate audio file " + str(args['inputWavFile'])
 
-    #print(len(my_segments))
+modelName = "model/svmModel"
+if not os.path.isfile(modelName):
+    print "Cannot locate model file " + modelName
 
-    segments_A = filter(lambda x: x.classification == "speech", my_segments)
-    segments_A.sort(key=lambda x: x.end)
+# get the duration of the wave file
+audio_trim_duration = 0
+audio_trim_hour = 0
+with contextlib.closing(wave.open(args['inputWavFile'],'r')) as f:
+    frames = f.getnframes()
+    rate = f.getframerate()
+    duration = frames / float(rate)
+    audio_trim_duration = int(duration*1000)
+    audio_trim_hour = 1 if (int(duration) < 3700) else 0
 
-    segments_AC = filter(lambda x: x.diff >= threshold_speech, segments_A)
-    segments_AC.sort(key=lambda x: x.end)
+my_segments = []
 
-    final_list = []
-    last_speech = int(audio_trim_duration / 1000)
-    if len(segments_A) > 2:
-        final_list.append(segments_AC[0].start)
-        final_list.append(segments_AC[-1].end + 10)
-        last_speech = segments_AC[-1].end
-    else:
-        final_list.append(1)
-        final_list.append(last_speech - 1)
+if (audio_trim_hour == 1):
+    modelType = "svm"
+    gtFile = ""
+    returnVal = aS.mtFileClassification(args['inputWavFile'], modelName, modelType, False, gtFile)
+    flagsInd = returnVal[0]
+    classNames = returnVal[1]
 
+    flags = [classNames[int(f)] for f in flagsInd]
+    (segs, classes) = aS.flags2segs(flags, 1)
 
-    segments_B = filter(lambda x: x.classification == "non-speech", my_segments)
-    segments_B.sort(key=lambda x: x.end)
+    for s in range(len(segs)):
+        sg = segs[s]
+        #print str(int(sg[0])*1000) +"-"+ str(int(sg[1])*1000)  + " : " + str(classes[s]) + "\n"
+        my_segments.append(Segment(int(sg[0]), int(sg[1]), str(classes[s])))
 
-    segments_BC = filter(lambda x: (x.diff >= threshold) and (x.start >= final_list[0]) and (x.end < final_list[-1]), segments_B)
-    segments_BC.sort(key=lambda x: x.end)
+#print(len(my_segments))
 
-    stats = {
-        'len': len(my_segments),
-        'hour': audio_trim_hour, 'duration': audio_trim_duration,
-        'speech_no': len(segments_A), 'speech_ms': sum(c.diff for c in segments_A), 
-        'nonspeech_no': len(segments_B), 'nonspeech_ms': sum(c.diff for c in segments_B),
-        'nonspeech_used_no': len(segments_BC), 'nonspeech_used_ms': sum(c.diff for c in segments_BC)
-    }
-   
-    for c in segments_BC:
-        final_list.append(c.start)
-        final_list.append(c.end)
+# Speech
+segments_speech = filter(lambda x: x.classification == "speech", my_segments)
+segments_speech.sort(key=lambda x: x.end)
 
-    # remove duplicates
-    final_list = set(final_list)
-    final_list = list(final_list)
-    final_list.sort()
-    
-    # first segment is always a second from the start...
-    if (final_list[0] == 0):
-        final_list[0] = 1
-    
-    if (final_list[-1] == int(audio_trim_duration / 1000)):
-        final_list[-1] = int(audio_trim_duration / 1000) - 1
+segments_speech_start = filter(lambda x: x.diff > int(args['theshold_speech_start']), segments_speech)
+segments_speech_start.sort(key=lambda x: x.end)
 
-    stats['good_start'] = final_list[0] < 300
-    stats['good_end'] = final_list[-1] + 600 > int(audio_trim_duration / 1000) 
+segments_speech_end = filter(lambda x: x.diff > int(args['threshold_speech_end']), segments_speech)
+segments_speech_end.sort(key=lambda x: x.end)
 
-    final_list = map(lambda x: x * 1000, final_list)
-
-    ''' 
-    print (stats)
-    print(str(';'.join(str(e) for e in final_list)))
-    '''
-    
-    f = open(outputTextFile, 'w')
-    #f.write('audio_trim_file=' + inputWavFile +'\n')
-    #f.write('audio_trim_out_file=' + outputTextFile +'\n')
-    f.write('audio_trim_duration=' + str(stats['duration']) +'\n')
-    f.write('audio_trim_ishour=' + ("true" if (stats['hour'] <= 1) else "false") +'\n')
-    f.write('audio_trim_good_start=' + ("true" if (stats['good_start'] <= 1) else "false") +'\n')
-    f.write('audio_trim_good_end=' + ("true" if (stats['good_end'] <= 1) else "false") +'\n')
-    f.write('audio_trim_segments=' + str(';'.join(str(e) for e in final_list)) +'\n')
-    f.write('audio_trim_segments_no=' + str(int(stats['len'])) +'\n')
-    f.write('audio_trim_segments_speech_no=' + str(int(stats['speech_no'])) +'\n')
-    f.write('audio_trim_segments_speech_ms=' + str(int(stats['speech_ms']) * 1000) +'\n')
-    f.write('audio_trim_segments_notspeech_no=' + str(int(stats['nonspeech_no'])) +'\n')
-    f.write('audio_trim_segments_notspeech_ms=' + str(int(stats['nonspeech_ms']) * 1000) +'\n')
-    f.write('audio_trim_segments_notspeech_used_no=' + str(int(stats['nonspeech_used_no'])) +'\n')
-    f.write('audio_trim_segments_notspeech_used_ms=' + str(int(stats['nonspeech_used_ms']) * 1000) +'\n')
-    f.write("audio_trim_exec_time=%s\n" % round((time.time() - start_time), 3))
-    f.close()
-    
-
+final_list = []
+last_speech = int(audio_trim_duration / 1000)
+if (len(segments_speech_start) > 1) and (len(segments_speech_end) > 1):
+    final_list.append(segments_speech_start[0].start)
+    final_list.append(segments_speech_end[-1].end + int(args['adjust_speech']))
+    last_speech = segments_speech_end[-1].end
 else:
-    usage()
-    sys.exit(os.EX_USAGE)
+    final_list.append(1)
+    final_list.append(last_speech - 1)
+
+# Non-Speech
+segments_B = filter(lambda x: x.classification == "non-speech", my_segments)
+segments_B.sort(key=lambda x: x.end)
+
+segments_BC = filter(lambda x: (x.diff >= int(args['threshold'])) and (x.start >= final_list[0]) and (x.end < final_list[-1]), segments_B)
+segments_BC.sort(key=lambda x: x.end)
+
+stats = {
+    'len': len(my_segments),
+    'hour': audio_trim_hour, 'duration': audio_trim_duration,
+    'speech_no': len(segments_speech), 'speech_ms': sum(c.diff for c in segments_speech), 
+    'nonspeech_no': len(segments_B), 'nonspeech_ms': sum(c.diff for c in segments_B),
+    'nonspeech_used_no': len(segments_BC), 'nonspeech_used_ms': sum(c.diff for c in segments_BC)
+}
+
+for c in segments_BC:
+    final_list.append(c.start)
+    final_list.append(c.end)
+
+# remove duplicates
+final_list = set(final_list)
+final_list = list(final_list)
+final_list.sort()
+
+# first segment is always a second from the start...
+if (final_list[0] == 0):
+    final_list[0] = args['buffer_start']
+
+if (final_list[-1] == int(audio_trim_duration / 1000)):
+    final_list[-1] = int(audio_trim_duration / 1000) - args['buffer_end']
+
+stats['good_start'] = final_list[0] < args['good_start']
+stats['good_end'] = final_list[-1] + args['good_end'] > int(audio_trim_duration / 1000) 
+
+final_list = map(lambda x: x * 1000, final_list)
+
+''' 
+print (stats)
+print(str(';'.join(str(e) for e in final_list)))
+'''
+
+f = open(args['outputTextFile'], 'w')
+#f.write('audio_trim_file=' + args['inputWavFile'] +'\n')
+#f.write('audio_trim_out_file=' + args['outputTextFile'] +'\n')
+f.write('audio_trim_duration=' + str(stats['duration']) +'\n')
+f.write('audio_trim_ishour=' + ("true" if (stats['hour'] <= 1) else "false") +'\n')
+f.write('audio_trim_good_start=' + ("true" if (stats['good_start'] <= 1) else "false") +'\n')
+f.write('audio_trim_good_end=' + ("true" if (stats['good_end'] <= 1) else "false") +'\n')
+f.write('audio_trim_segments=' + str(';'.join(str(e) for e in final_list)) +'\n')
+f.write('audio_trim_segments_no=' + str(int(stats['len'])) +'\n')
+f.write('audio_trim_segments_speech_no=' + str(int(stats['speech_no'])) +'\n')
+f.write('audio_trim_segments_speech_ms=' + str(int(stats['speech_ms']) * 1000) +'\n')
+f.write('audio_trim_segments_notspeech_no=' + str(int(stats['nonspeech_no'])) +'\n')
+f.write('audio_trim_segments_notspeech_ms=' + str(int(stats['nonspeech_ms']) * 1000) +'\n')
+f.write('audio_trim_segments_notspeech_used_no=' + str(int(stats['nonspeech_used_no'])) +'\n')
+f.write('audio_trim_segments_notspeech_used_ms=' + str(int(stats['nonspeech_used_ms']) * 1000) +'\n')
+f.write("audio_trim_exec_time=%s\n" % round((time.time() - start_time), 3))
+f.close()
 
 sys.exit(os.EX_OK) # code 0, all ok
-
-
