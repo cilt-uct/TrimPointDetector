@@ -27,6 +27,7 @@ usage: detectTrimPoints_woh.py [-h] [--version] -i wav -o txt
                                [--start-speech seconds)]
                                [--end-speech (seconds)]
                                [--non-speech (seconds)]
+                               [--start-adjust (seconds)]
                                [--end-adjust (seconds)]
                                [--start-buffer (seconds)]
                                [--end-buffer (seconds)]
@@ -41,16 +42,19 @@ optional arguments:
   -o txt, --output txt  The file to write the properties in
   --start-speech (seconds)
                         Threshold for speech at the start of the recording
-                        [sec] (default: 3)
+                        [sec] (default: 3, >=)
   --end-speech (seconds)
                         Threshold value for speech at the end of the recording
-                        [sec] (default: 5)
+                        [sec] (default: 5, >=)
   --non-speech (seconds)
                         Threshold value for non-speech segments [sec]
-                        (default: 90)
+                        (default: 120 >=)
+  --start-adjust (seconds)
+                        Adjust the first speech segment start time by a number
+                        of seconds [sec] (default: -15)
   --end-adjust (seconds)
-                        Move the last speech segments end time longer by a
-                        number of seconds [sec] (default: 10)
+                        Adjust the last speech segments end time by a number
+                        of seconds [sec] (default: 20)
   --start-buffer (seconds)
                         If the start of the segment list is 0 then use this
                         buffer [sec] (default: 1)
@@ -66,23 +70,19 @@ optional arguments:
                         10min)
 ```
 
-Where the `5` is the threshold value for speech in seconds, speech segments equal or larger than the value is taken into consideration to determine the first and last speech segment.
-
-The `90` is the threshold for non speech in seconds, non speech values equal or longer than the value and inbetween the start and end of the speech segments will then be included in the segment list.
-
 Result:
 ```
 audio_trim_duration=3600050
 audio_trim_ishour=true
 audio_trim_good_start=true
 audio_trim_good_end=true
-audio_trim_segments=1000;2697000;3010000;3339000
-audio_trim_segments_no=304
-audio_trim_segments_speech_no=152
+audio_trim_segments=1000-2697000;3010000-3339000;
+audio_trim_segments=304
+audio_trim_segments_speech=152
 audio_trim_segments_speech_ms=2464000
-audio_trim_segments_notspeech_no=152
+audio_trim_segments_notspeech=152
 audio_trim_segments_notspeech_ms=1136000
-audio_trim_segments_notspeech_used_no=1
+audio_trim_segments_notspeech_used=1
 audio_trim_segments_notspeech_used_ms=313000
 audio_trim_exec_time=80.947
 ```

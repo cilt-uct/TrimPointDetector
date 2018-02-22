@@ -38,15 +38,17 @@ parser.add_argument('-o', '--output', dest='outputTextFile', type=str, required=
                     help='The file to write the properties in')
 
 parser.add_argument('--start-speech', dest='theshold_speech_start', type=int, default=3, metavar="(seconds)",
-                    help='Threshold for speech at the start of the recording [sec] (default: 3)') 
+                    help='Threshold for speech at the start of the recording [sec] (default: 3, >=)') 
 parser.add_argument('--end-speech', dest='threshold_speech_end', type=int, default=5, metavar="(seconds)",
-                    help='Threshold value for speech at the end of the recording [sec] (default: 5)')
+                    help='Threshold value for speech at the end of the recording [sec] (default: 5, >=)')
 
-parser.add_argument('--non-speech', dest='threshold', type=int, default=90, metavar="(seconds)",
-                    help='Threshold value for non-speech segments [sec] (default: 90)')
+parser.add_argument('--non-speech', dest='threshold', type=int, default=120, metavar="(seconds)",
+                    help='Threshold value for non-speech segments [sec] (default: 120 >=)')
 
-parser.add_argument('--end-adjust', dest='adjust_speech', type=int, default=10, metavar="(seconds)",
-                    help='Move the last speech segments end time longer by a number of seconds [sec] (default: 10)')
+parser.add_argument('--start-adjust', dest='adjust_speech_start', type=int, default=-15, metavar="(seconds)",
+                    help='Adjust the first speech segment start time by a number of seconds [sec] (default: -15)')
+parser.add_argument('--end-adjust', dest='adjust_speech_end', type=int, default=20, metavar="(seconds)",
+                    help='Adjust the last speech segments end time by a number of seconds [sec] (default: 20)')
 
 parser.add_argument('--start-buffer', dest='buffer_start', type=int, default=1, metavar="(seconds)",
                     help='If the start of the segment list is 0 then use this buffer [sec] (default: 1)')
@@ -92,7 +94,8 @@ if (audio_trim_hour == 1):
 
     for s in range(len(segs)):
         sg = segs[s]
-        #print str(int(sg[0])*1000) +"-"+ str(int(sg[1])*1000)  + " : " + str(classes[s]) + "\n"
+	diff = int(sg[1]) - int(sg[0])
+        #print str(int(sg[0])*1000) +"-"+ str(int(sg[1])*1000)  +"("+ str(diff)  +") : " + str(classes[s]) + "\n"
         my_segments.append(Segment(int(sg[0]), int(sg[1]), str(classes[s])))
 
 #print(len(my_segments))
@@ -101,21 +104,36 @@ if (audio_trim_hour == 1):
 segments_speech = filter(lambda x: x.classification == "speech", my_segments)
 segments_speech.sort(key=lambda x: x.end)
 
-segments_speech_start = filter(lambda x: x.diff > int(args['theshold_speech_start']), segments_speech)
+segments_speech_start = filter(lambda x: x.diff >= int(args['theshold_speech_start']), segments_speech)
 segments_speech_start.sort(key=lambda x: x.end)
 
-segments_speech_end = filter(lambda x: x.diff > int(args['threshold_speech_end']), segments_speech)
+segments_speech_end = filter(lambda x: x.diff >= int(args['threshold_speech_end']), segments_speech)
 segments_speech_end.sort(key=lambda x: x.end)
 
 final_list = []
 last_speech = int(audio_trim_duration / 1000)
-if (len(segments_speech_start) > 1) and (len(segments_speech_end) > 1):
-    final_list.append(segments_speech_start[0].start)
-    final_list.append(segments_speech_end[-1].end + int(args['adjust_speech']))
+if (len(segments_speech_start) > 1):
+    final_list.append(segments_speech_start[0].start + int(args['adjust_speech_start']))
+    #print "|%s|%s|" % (segments_speech_start[0].start, int(args['adjust_speech_start']))
+else: 
+    final_list.append(int(args['buffer_start']))
+
+if (len(segments_speech_end) > 1):
+    final_list.append(segments_speech_end[-1].end + int(args['adjust_speech_end']))
     last_speech = segments_speech_end[-1].end
+    #print "|%s|%s|" % (segments_speech_end[-1].end, int(args['adjust_speech_end']))
 else:
-    final_list.append(1)
-    final_list.append(last_speech - 1)
+    final_list.append(last_speech - int(args['buffer_end']))
+
+#print final_list 
+
+if (final_list[0] <= 0):
+    final_list[0] = int(args['buffer_start'])
+
+if (final_list[-1] >= int(audio_trim_duration / 1000)):
+    final_list[-1] = int(audio_trim_duration / 1000) - int(args['buffer_end'])
+
+#print final_list
 
 # Non-Speech
 segments_B = filter(lambda x: x.classification == "non-speech", my_segments)
@@ -153,9 +171,19 @@ stats['good_end'] = final_list[-1] + args['good_end'] > int(audio_trim_duration 
 
 final_list = map(lambda x: x * 1000, final_list)
 
+result = ''
+d = '-'
+for e in final_list:
+    result = result + str(e) + d
+    if (d == '-'):
+        d = ';'
+    else:
+        d = '-'
+
 ''' 
 print (stats)
 print(str(';'.join(str(e) for e in final_list)))
+print(result)
 '''
 
 f = open(args['outputTextFile'], 'w')
@@ -165,13 +193,13 @@ f.write('audio_trim_duration=' + str(stats['duration']) +'\n')
 f.write('audio_trim_ishour=' + ("true" if (stats['hour'] <= 1) else "false") +'\n')
 f.write('audio_trim_good_start=' + ("true" if (stats['good_start'] <= 1) else "false") +'\n')
 f.write('audio_trim_good_end=' + ("true" if (stats['good_end'] <= 1) else "false") +'\n')
-f.write('audio_trim_segments=' + str(';'.join(str(e) for e in final_list)) +'\n')
-f.write('audio_trim_segments_no=' + str(int(stats['len'])) +'\n')
-f.write('audio_trim_segments_speech_no=' + str(int(stats['speech_no'])) +'\n')
+f.write('audio_trim_segments=' + result +'\n')
+f.write('audio_trim_segments=' + str(int(stats['len'])) +'\n')
+f.write('audio_trim_segments_speech=' + str(int(stats['speech_no'])) +'\n')
 f.write('audio_trim_segments_speech_ms=' + str(int(stats['speech_ms']) * 1000) +'\n')
-f.write('audio_trim_segments_notspeech_no=' + str(int(stats['nonspeech_no'])) +'\n')
+f.write('audio_trim_segments_notspeech=' + str(int(stats['nonspeech_no'])) +'\n')
 f.write('audio_trim_segments_notspeech_ms=' + str(int(stats['nonspeech_ms']) * 1000) +'\n')
-f.write('audio_trim_segments_notspeech_used_no=' + str(int(stats['nonspeech_used_no'])) +'\n')
+f.write('audio_trim_segments_notspeech_used=' + str(int(stats['nonspeech_used_no'])) +'\n')
 f.write('audio_trim_segments_notspeech_used_ms=' + str(int(stats['nonspeech_used_ms']) * 1000) +'\n')
 f.write("audio_trim_exec_time=%s\n" % round((time.time() - start_time), 3))
 f.close()
