@@ -27,7 +27,7 @@ if len(sys.argv) > 1:
     if not os.path.isfile(inputWavFile):
         print "Cannot locate audio file " + inputWavFile
 
-    modelName = "model/svmFinalAll"
+    modelName = "model/svmModel"
     if not os.path.isfile(modelName):
         print "Cannot locate model file " + modelName
 
