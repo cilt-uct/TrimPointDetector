@@ -30,7 +30,7 @@ class Segment(object):
         self.classification = str(classification)
 
 parser = argparse.ArgumentParser(description='Audio Trim point detector')
-parser.add_argument('--version', action='version', version='Audio Trim point detector build UCT Feb 21 2018 10:49')
+parser.add_argument('--version', action='version', version='Audio Trim point detector build UCT Mar 1 2018 09:51')
 
 parser.add_argument('-i', '--input', dest='inputWavFile', type=str, required=True, metavar="wav",
                     help='The wav file to detect trimpoints from')
@@ -59,6 +59,8 @@ parser.add_argument('--good-start', dest='good_start', type=int, default=300, me
                     help='Does the first segment start within this number of seconds, if true then good start [sec] (default: 300 = 5min)')
 parser.add_argument('--good-end', dest='good_end', type=int, default=600, metavar="(seconds)",
                     help='Does the last segment end within this number of seconds, if true then good end [sec] (default: 600 = 10min)')
+
+parser.add_argument('-d', '--debug', action='store_true', help='print debug messages')
 
 args = vars(parser.parse_args())
 start_time = time.time()     
@@ -95,7 +97,8 @@ if (audio_trim_hour == 1):
     for s in range(len(segs)):
         sg = segs[s]
 	diff = int(sg[1]) - int(sg[0])
-        #print str(int(sg[0])*1000) +"-"+ str(int(sg[1])*1000)  +"("+ str(diff)  +") : " + str(classes[s]) + "\n"
+        if (args['debug']):
+            print str(int(sg[0])*1000) +"-"+ str(int(sg[1])*1000)  +"("+ str(diff)  +") : " + str(classes[s]) + "\n"
         my_segments.append(Segment(int(sg[0]), int(sg[1]), str(classes[s])))
 
 #print(len(my_segments))
@@ -114,18 +117,21 @@ final_list = []
 last_speech = int(audio_trim_duration / 1000)
 if (len(segments_speech_start) > 1):
     final_list.append(segments_speech_start[0].start + int(args['adjust_speech_start']))
-    #print "|%s|%s|" % (segments_speech_start[0].start, int(args['adjust_speech_start']))
+    if (args['debug']): 
+        print "|%s|%s|" % (segments_speech_start[0].start, int(args['adjust_speech_start']))
 else: 
     final_list.append(int(args['buffer_start']))
 
 if (len(segments_speech_end) > 1):
     final_list.append(segments_speech_end[-1].end + int(args['adjust_speech_end']))
     last_speech = segments_speech_end[-1].end
-    #print "|%s|%s|" % (segments_speech_end[-1].end, int(args['adjust_speech_end']))
+    if (args['debug']): 
+        print "|%s|%s|" % (segments_speech_end[-1].end, int(args['adjust_speech_end']))
 else:
     final_list.append(last_speech - int(args['buffer_end']))
 
-#print final_list 
+if (args['debug']):
+    print final_list 
 
 if (final_list[0] <= 0):
     final_list[0] = int(args['buffer_start'])
@@ -180,19 +186,21 @@ for e in final_list:
     else:
         d = '-'
 
-''' 
-print (stats)
-print(str(';'.join(str(e) for e in final_list)))
-print(result)
-'''
+if (args['debug']):
+    print (stats)
+    print ('audio_trim_autotrim=' + ("true" if ((stats['hour'] == 1) and (stats['nonspeech_used_no'] == 0) and stats['good_start'] and stats['good_end']) else "false") +'\n')
+    print(str(';'.join(str(e) for e in final_list)))
+    print(result)
+
 
 f = open(args['outputTextFile'], 'w')
 #f.write('audio_trim_file=' + args['inputWavFile'] +'\n')
 #f.write('audio_trim_out_file=' + args['outputTextFile'] +'\n')
 f.write('audio_trim_duration=' + str(stats['duration']) +'\n')
+f.write('audio_trim_autotrim=' + ("true" if ((stats['hour'] == 1) and (stats['nonspeech_used_no'] == 0) and stats['good_start'] and stats['good_end']) else "false") +'\n')
 f.write('audio_trim_ishour=' + ("true" if (stats['hour'] == 1) else "false") +'\n')
-f.write('audio_trim_good_start=' + ("true" if (stats['good_start'] <= 1) else "false") +'\n')
-f.write('audio_trim_good_end=' + ("true" if (stats['good_end'] <= 1) else "false") +'\n')
+f.write('audio_trim_good_start=' + ("true" if (stats['good_start']) else "false") +'\n')
+f.write('audio_trim_good_end=' + ("true" if (stats['good_end']) else "false") +'\n')
 f.write('audio_trim_segments=' + result +'\n')
 f.write('audio_trim_segments_len=' + str(int(stats['len'])) +'\n')
 f.write('audio_trim_segments_speech=' + str(int(stats['speech_no'])) +'\n')
