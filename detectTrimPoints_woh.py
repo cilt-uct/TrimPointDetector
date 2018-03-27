@@ -98,7 +98,7 @@ if (audio_trim_hour == 1):
 
     for s in range(len(segs)):
         sg = segs[s]
-	    diff = int(sg[1]) - int(sg[0])
+        diff = int(sg[1]) - int(sg[0])
         if (args['debug']):
             print str(int(sg[0])*1000) +"-"+ str(int(sg[1])*1000)  +"("+ str(diff)  +") : " + str(classes[s]) + "\n"
         my_segments.append(Segment(int(sg[0]), int(sg[1]), str(classes[s])))
