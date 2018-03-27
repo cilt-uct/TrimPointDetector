@@ -8,6 +8,7 @@
 *.swp
 *.bak
 pyAudioAnalysis/
+pyaudioanalysis/
 qa/
 test.*
 x.py

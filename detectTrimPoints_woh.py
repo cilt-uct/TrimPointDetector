@@ -75,6 +75,8 @@ if not os.path.isfile(modelName):
 # get the duration of the wave file
 audio_trim_duration = 0
 audio_trim_hour = 0
+auto_trim = 1 # optimistic - we want to auto_trim
+
 with contextlib.closing(wave.open(args['inputWavFile'],'r')) as f:
     frames = f.getnframes()
     rate = f.getframerate()
@@ -96,7 +98,7 @@ if (audio_trim_hour == 1):
 
     for s in range(len(segs)):
         sg = segs[s]
-	diff = int(sg[1]) - int(sg[0])
+	    diff = int(sg[1]) - int(sg[0])
         if (args['debug']):
             print str(int(sg[0])*1000) +"-"+ str(int(sg[1])*1000)  +"("+ str(diff)  +") : " + str(classes[s]) + "\n"
         my_segments.append(Segment(int(sg[0]), int(sg[1]), str(classes[s])))
@@ -121,6 +123,7 @@ if (len(segments_speech_start) > 1):
         print "|%s|%s|" % (segments_speech_start[0].start, int(args['adjust_speech_start']))
 else: 
     final_list.append(int(args['buffer_start']))
+    auto_trim = 0 # start is at 0 - bad start
 
 if (len(segments_speech_end) > 1):
     final_list.append(segments_speech_end[-1].end + int(args['adjust_speech_end']))
@@ -129,15 +132,18 @@ if (len(segments_speech_end) > 1):
         print "|%s|%s|" % (segments_speech_end[-1].end, int(args['adjust_speech_end']))
 else:
     final_list.append(last_speech - int(args['buffer_end']))
+    auto_trim = 0 # end is length of recording - bad end
 
 if (args['debug']):
     print final_list 
 
 if (final_list[0] <= 0):
     final_list[0] = int(args['buffer_start'])
+    auto_trim = 0 # start is at 0 - bad start
 
 if (final_list[-1] >= int(audio_trim_duration / 1000)):
     final_list[-1] = int(audio_trim_duration / 1000) - int(args['buffer_end'])
+    auto_trim = 0 # end is length of recording - bad end    
 
 #print final_list
 
@@ -165,15 +171,20 @@ final_list = set(final_list)
 final_list = list(final_list)
 final_list.sort()
 
-# first segment is always a second from the start...
+# first segment is always a x no of seconds from the start...
 if (final_list[0] == 0):
     final_list[0] = args['buffer_start']
+    stats['good_start'] = 0
+    auto_trim = 0 # start is at 0 - bad start
+else:
+    stats['good_start'] = final_list[0] < args['good_start']
 
 if (final_list[-1] == int(audio_trim_duration / 1000)):
     final_list[-1] = int(audio_trim_duration / 1000) - args['buffer_end']
-
-stats['good_start'] = final_list[0] < args['good_start']
-stats['good_end'] = final_list[-1] + args['good_end'] > int(audio_trim_duration / 1000) 
+    stats['good_end'] = 0
+    auto_trim = 0 # end is length of recording - bad end  
+else:
+    stats['good_end'] = final_list[-1] + args['good_end'] > int(audio_trim_duration / 1000) 
 
 final_list = map(lambda x: x * 1000, final_list)
 
