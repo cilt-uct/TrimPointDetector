@@ -6,6 +6,7 @@ import sklearn.cluster
 import time
 import scipy
 import os
+import ConfigParser
 from pyAudioAnalysis import audioFeatureExtraction as aF
 from pyAudioAnalysis import audioTrainTest as aT
 from pyAudioAnalysis import audioBasicIO
@@ -29,8 +30,23 @@ class Segment(object):
         self.diff = int(end) - int(start)
         self.classification = str(classification)
 
+def ConfigSectionMap(section):
+    dict1 = {}
+    options = Config.options(section)
+    for option in options:
+        try:
+            dict1[option] = Config.get(section, option)
+            if dict1[option] == -1:
+                DebugPrint("skip: %s" % option)
+        except:
+            print("exception on %s!" % option)
+            dict1[option] = None
+    return dict1    
+
 parser = argparse.ArgumentParser(description='Audio Trim point detector')
-parser.add_argument('--version', action='version', version='Audio Trim point detector build UCT Mar 1 2018 09:51')
+parser.add_argument('--version', action='version', version='Audio Trim point detector build UCT May 14 2018 14:53')
+
+parser.add_argument('--venue', action='venue', version='The venue of this recording used for venue specific models')
 
 parser.add_argument('-i', '--input', dest='inputWavFile', type=str, required=True, metavar="wav",
                     help='The wav file to detect trimpoints from')
@@ -63,14 +79,21 @@ parser.add_argument('--good-end', dest='good_end', type=int, default=600, metava
 parser.add_argument('-d', '--debug', action='store_true', help='print debug messages')
 
 args = vars(parser.parse_args())
-start_time = time.time()     
+start_time = time.time()
+
+Config = ConfigParser.ConfigParser()
+Config.read("config.ini")
 
 if not os.path.isfile(args['inputWavFile']):
     print "Cannot locate audio file " + str(args['inputWavFile'])
 
-modelName = "model/svmModel"
+default_modelName = "model/svmModel"
+modelName = ConfigSectionMap("Venues")[ args['venue'] ]
+
 if not os.path.isfile(modelName):
-    print "Cannot locate model file " + modelName
+    modelName = default_modelName
+    if not os.path.isfile(modelName):
+        print "Cannot locate model file " + modelName
 
 # get the duration of the wave file
 audio_trim_duration = 0
