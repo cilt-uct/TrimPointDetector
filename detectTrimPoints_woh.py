@@ -46,7 +46,8 @@ def ConfigSectionMap(section):
 parser = argparse.ArgumentParser(description='Audio Trim point detector')
 parser.add_argument('--version', action='version', version='Audio Trim point detector build UCT May 14 2018 14:53')
 
-parser.add_argument('--venue', action='venue', version='The venue of this recording used for venue specific models')
+parser.add_argument('--venue', dest='venue', type=str, default='none', 
+                    help='The venue of this recording used for venue specific models')
 
 parser.add_argument('-i', '--input', dest='inputWavFile', type=str, required=True, metavar="wav",
                     help='The wav file to detect trimpoints from')
@@ -88,9 +89,12 @@ if not os.path.isfile(args['inputWavFile']):
     print "Cannot locate audio file " + str(args['inputWavFile'])
 
 default_modelName = "model/svmModel"
-modelName = ConfigSectionMap("Venues")[ args['venue'] ]
+modelName = default_modelName
 
-if not os.path.isfile(modelName):
+if args['venue'] in ConfigSectionMap("Venues"):
+  modelName = 'model/' + ConfigSectionMap("Venues")[ args['venue'] ]
+
+  if not os.path.isfile(modelName):
     modelName = default_modelName
     if not os.path.isfile(modelName):
         print "Cannot locate model file " + modelName
@@ -222,6 +226,7 @@ for e in final_list:
 
 if (args['debug']):
     print (stats)
+    print ('modelName: ' + modelName)
     print ('audio_trim_autotrim=' + ("true" if ((stats['hour'] == 1) and (stats['nonspeech_used_no'] == 0) and stats['good_start'] and stats['good_end']) else "false") +'\n')
     print(str(';'.join(str(e) for e in final_list)))
     print(result)
