@@ -11,4 +11,5 @@ pyAudioAnalysis/
 pyaudioanalysis/
 qa/
 test.*
+test*.txt
 x.py

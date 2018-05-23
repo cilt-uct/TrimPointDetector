@@ -38,6 +38,7 @@ Audio Trim point detector
 optional arguments:
   -h, --help            show this help message and exit
   --version             show program's version number and exit
+  --venue               The venue of this recording used for venue specific models
   -i wav, --input wav   The wav file to detect trimpoints from
   -o txt, --output txt  The file to write the properties in
   --start-speech (seconds)
