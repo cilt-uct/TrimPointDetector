@@ -248,6 +248,7 @@ f.write('audio_trim_segments_notspeech=' + str(int(stats['nonspeech_no'])) +'\n'
 f.write('audio_trim_segments_notspeech_ms=' + str(int(stats['nonspeech_ms']) * 1000) +'\n')
 f.write('audio_trim_segments_notspeech_used=' + str(int(stats['nonspeech_used_no'])) +'\n')
 f.write('audio_trim_segments_notspeech_used_ms=' + str(int(stats['nonspeech_used_ms']) * 1000) +'\n')
+f.write('audio_trim-model=' + modelName.replace("/","_") +'\n')
 f.write("audio_trim_exec_time=%s\n" % round((time.time() - start_time), 3))
 f.close()
 
