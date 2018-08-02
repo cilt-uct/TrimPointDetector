@@ -13,3 +13,4 @@ qa/
 test.*
 test*.txt
 x.py
+pyaudioanalysis/

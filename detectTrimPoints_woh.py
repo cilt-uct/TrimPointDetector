@@ -19,7 +19,6 @@ from pyAudioAnalysis import audioSegmentation as aS
 import itertools as it
 import wave
 import contextlib
-import time
 import argparse
 
 class Segment(object):
@@ -30,18 +29,44 @@ class Segment(object):
         self.diff = int(end) - int(start)
         self.classification = str(classification)
 
+def get_model_path(wave_file):
+
+    # model used to predict mic model (boundary or lapel)
+    mic_model = "model/svmDetectMicTypeModel"
+    # lapel speech model
+    lapel_model = "model/svmLapelSpeechModel"
+    # boundary speech model
+    boundary_model = "model/svmNoLapelSpeechModel"
+
+    # run the classification model on the audio file
+    [Result, P, classNames] = aT.fileClassification(wave_file, mic_model, "svm")
+    Result = int(Result)
+
+    print(Result)
+    print(P)
+    print(classNames)
+
+    #return boundary_model
+    # if the winner class is boundary_speech return
+    # the path of the boundary speech model, otherwise
+    # return the path of thelapel speech model
+    if (classNames[Result] == "boundry_speech"):
+        return boundary_model
+    else:
+        return lapel_model
+
 def ConfigSectionMap(section):
     dict1 = {}
     options = Config.options(section)
     for option in options:
         try:
             dict1[option] = Config.get(section, option)
-            if dict1[option] == -1:
-                DebugPrint("skip: %s" % option)
+            #if dict1[option] == -1:
+            #    DebugPrint("skip: %s" % option)
         except:
             print("exception on %s!" % option)
             dict1[option] = None
-    return dict1    
+    return dict1
 
 parser = argparse.ArgumentParser(description='Audio Trim point detector')
 parser.add_argument('--version', action='version', version='Audio Trim point detector build UCT May 14 2018 14:53')
@@ -85,19 +110,27 @@ start_time = time.time()
 Config = ConfigParser.ConfigParser()
 Config.read("config.ini")
 
+if (args['debug']):
+    print "Start processing..."
+
 if not os.path.isfile(args['inputWavFile']):
     print "Cannot locate audio file " + str(args['inputWavFile'])
 
-default_modelName = "model/svmModel"
+default_modelName = "model/svmNoLapelSpeechModel"
 modelName = default_modelName
 
+# so if there is a venue that we have mapped then we are going to use that model
+# else we will use the appropriate mic configuration
 if args['venue'] in ConfigSectionMap("Venues"):
-  modelName = 'model/' + ConfigSectionMap("Venues")[ args['venue'] ]
+    modelName = 'model/' + ConfigSectionMap("Venues")[ args['venue'] ]
 
-  if not os.path.isfile(modelName):
-    modelName = default_modelName
     if not os.path.isfile(modelName):
-        print "Cannot locate model file " + modelName
+        modelName = default_modelName
+        if not os.path.isfile(modelName):
+            print "Cannot locate model file " + modelName
+else:
+    # detect mic configuration
+    default_modelName = get_model_path(args['inputWavFile'])
 
 # get the duration of the wave file
 audio_trim_duration = 0
@@ -148,7 +181,7 @@ if (len(segments_speech_start) > 1):
     final_list.append(segments_speech_start[0].start + int(args['adjust_speech_start']))
     if (args['debug']): 
         print "|%s|%s|" % (segments_speech_start[0].start, int(args['adjust_speech_start']))
-else: 
+else:
     final_list.append(int(args['buffer_start']))
     auto_trim = 0 # start is at 0 - bad start
 
@@ -162,7 +195,7 @@ else:
     auto_trim = 0 # end is length of recording - bad end
 
 if (args['debug']):
-    print final_list 
+    print final_list
 
 if (final_list[0] <= 0):
     final_list[0] = int(args['buffer_start'])
@@ -170,7 +203,7 @@ if (final_list[0] <= 0):
 
 if (final_list[-1] >= int(audio_trim_duration / 1000)):
     final_list[-1] = int(audio_trim_duration / 1000) - int(args['buffer_end'])
-    auto_trim = 0 # end is length of recording - bad end    
+    auto_trim = 0 # end is length of recording - bad end
 
 #print final_list
 
@@ -184,7 +217,7 @@ segments_BC.sort(key=lambda x: x.end)
 stats = {
     'len': len(my_segments),
     'hour': audio_trim_hour, 'duration': audio_trim_duration,
-    'speech_no': len(segments_speech), 'speech_ms': sum(c.diff for c in segments_speech), 
+    'speech_no': len(segments_speech), 'speech_ms': sum(c.diff for c in segments_speech),
     'nonspeech_no': len(segments_B), 'nonspeech_ms': sum(c.diff for c in segments_B),
     'nonspeech_used_no': len(segments_BC), 'nonspeech_used_ms': sum(c.diff for c in segments_BC)
 }
@@ -209,9 +242,9 @@ else:
 if (final_list[-1] == int(audio_trim_duration / 1000)):
     final_list[-1] = int(audio_trim_duration / 1000) - args['buffer_end']
     stats['good_end'] = 0
-    auto_trim = 0 # end is length of recording - bad end  
+    auto_trim = 0 # end is length of recording - bad end
 else:
-    stats['good_end'] = final_list[-1] + args['good_end'] > int(audio_trim_duration / 1000) 
+    stats['good_end'] = final_list[-1] + args['good_end'] > int(audio_trim_duration / 1000)
 
 final_list = map(lambda x: x * 1000, final_list)
 
@@ -228,9 +261,8 @@ if (args['debug']):
     print (stats)
     print ('modelName: ' + modelName)
     print ('audio_trim_autotrim=' + ("true" if ((stats['hour'] == 1) and (stats['nonspeech_used_no'] == 0) and stats['good_start'] and stats['good_end']) else "false") +'\n')
-    print(str(';'.join(str(e) for e in final_list)))
-    print(result)
-
+    print (str(';'.join(str(e) for e in final_list)))
+    print (result)
 
 f = open(args['outputTextFile'], 'w')
 #f.write('audio_trim_file=' + args['inputWavFile'] +'\n')
@@ -248,7 +280,7 @@ f.write('audio_trim_segments_notspeech=' + str(int(stats['nonspeech_no'])) +'\n'
 f.write('audio_trim_segments_notspeech_ms=' + str(int(stats['nonspeech_ms']) * 1000) +'\n')
 f.write('audio_trim_segments_notspeech_used=' + str(int(stats['nonspeech_used_no'])) +'\n')
 f.write('audio_trim_segments_notspeech_used_ms=' + str(int(stats['nonspeech_used_ms']) * 1000) +'\n')
-f.write('audio_trim-model=' + modelName.replace("/","_") +'\n')
+f.write('audio_trim_model=' + modelName.replace("/","_") +'\n')
 f.write("audio_trim_exec_time=%s\n" % round((time.time() - start_time), 3))
 f.close()
 
