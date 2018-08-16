@@ -71,7 +71,7 @@ def ConfigSectionMap(section):
 parser = argparse.ArgumentParser(description='Audio Trim point detector')
 parser.add_argument('--version', action='version', version='Audio Trim point detector build UCT May 14 2018 14:53')
 
-parser.add_argument('--venue', dest='venue', type=str, default='none', 
+parser.add_argument('--venue', dest='venue', type=str, default='none',
                     help='The venue of this recording used for venue specific models')
 
 parser.add_argument('-i', '--input', dest='inputWavFile', type=str, required=True, metavar="wav",
@@ -80,7 +80,7 @@ parser.add_argument('-o', '--output', dest='outputTextFile', type=str, required=
                     help='The file to write the properties in')
 
 parser.add_argument('--start-speech', dest='theshold_speech_start', type=int, default=3, metavar="(seconds)",
-                    help='Threshold for speech at the start of the recording [sec] (default: 3, >=)') 
+                    help='Threshold for speech at the start of the recording [sec] (default: 3, >=)')
 parser.add_argument('--end-speech', dest='threshold_speech_end', type=int, default=5, metavar="(seconds)",
                     help='Threshold value for speech at the end of the recording [sec] (default: 5, >=)')
 
@@ -179,7 +179,7 @@ final_list = []
 last_speech = int(audio_trim_duration / 1000)
 if (len(segments_speech_start) > 1):
     final_list.append(segments_speech_start[0].start + int(args['adjust_speech_start']))
-    if (args['debug']): 
+    if (args['debug']):
         print "|%s|%s|" % (segments_speech_start[0].start, int(args['adjust_speech_start']))
 else:
     final_list.append(int(args['buffer_start']))
@@ -188,7 +188,7 @@ else:
 if (len(segments_speech_end) > 1):
     final_list.append(segments_speech_end[-1].end + int(args['adjust_speech_end']))
     last_speech = segments_speech_end[-1].end
-    if (args['debug']): 
+    if (args['debug']):
         print "|%s|%s|" % (segments_speech_end[-1].end, int(args['adjust_speech_end']))
 else:
     final_list.append(last_speech - int(args['buffer_end']))
@@ -281,6 +281,7 @@ f.write('audio_trim_segments_notspeech_ms=' + str(int(stats['nonspeech_ms']) * 1
 f.write('audio_trim_segments_notspeech_used=' + str(int(stats['nonspeech_used_no'])) +'\n')
 f.write('audio_trim_segments_notspeech_used_ms=' + str(int(stats['nonspeech_used_ms']) * 1000) +'\n')
 f.write('audio_trim_model=' + modelName.replace("/","_") +'\n')
+f.write('audio_trim_lapel=' + ("true" if ("NoLapel" not in modelName) else "false") +'\n')
 f.write("audio_trim_exec_time=%s\n" % round((time.time() - start_time), 3))
 f.close()
 
