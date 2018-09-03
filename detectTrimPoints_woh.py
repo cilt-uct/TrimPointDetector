@@ -117,20 +117,7 @@ if not os.path.isfile(args['inputWavFile']):
     print "Cannot locate audio file " + str(args['inputWavFile'])
 
 default_modelName = "model/svmNoLapelSpeechModel"
-modelName = default_modelName
-
-# so if there is a venue that we have mapped then we are going to use that model
-# else we will use the appropriate mic configuration
-if args['venue'] in ConfigSectionMap("Venues"):
-    modelName = 'model/' + ConfigSectionMap("Venues")[ args['venue'] ]
-
-    if not os.path.isfile(modelName):
-        modelName = default_modelName
-        if not os.path.isfile(modelName):
-            print "Cannot locate model file " + modelName
-else:
-    # detect mic configuration
-    default_modelName = get_model_path(args['inputWavFile'])
+modelName = "model/noModel"
 
 # get the duration of the wave file
 audio_trim_duration = 0
@@ -147,6 +134,21 @@ with contextlib.closing(wave.open(args['inputWavFile'],'r')) as f:
 my_segments = []
 
 if (audio_trim_hour == 1):
+
+    # ONLY do this for recordings that are less than an 60 min
+    # so if there is a venue that we have mapped then we are going to use that model
+    # else we will use the appropriate mic configuration
+    if args['venue'] in ConfigSectionMap("Venues"):
+        modelName = 'model/' + ConfigSectionMap("Venues")[ args['venue'] ]
+
+        if not os.path.isfile(modelName):
+            modelName = default_modelName
+            if not os.path.isfile(modelName):
+                print "Cannot locate model file " + modelName
+    else:
+        # detect mic configuration by analyzing input wav file
+        modelName = get_model_path(args['inputWavFile'])
+
     modelType = "svm"
     gtFile = ""
     returnVal = aS.mtFileClassification(args['inputWavFile'], modelName, modelType, False, gtFile)
