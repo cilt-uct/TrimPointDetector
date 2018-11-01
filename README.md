@@ -74,32 +74,38 @@ optional arguments:
 Result:
 ```
 audio_trim_duration=3600050
+audio_trim_autotrim=true
 audio_trim_ishour=true
 audio_trim_good_start=true
 audio_trim_good_end=true
 audio_trim_segments=1000-2697000;3010000-3339000;
-audio_trim_segments=304
+audio_trim_segments_len=304
 audio_trim_segments_speech=152
 audio_trim_segments_speech_ms=2464000
 audio_trim_segments_notspeech=152
 audio_trim_segments_notspeech_ms=1136000
 audio_trim_segments_notspeech_used=1
 audio_trim_segments_notspeech_used_ms=313000
+audio_trim_model=
+audio_trim_lapel=true
 audio_trim_exec_time=80.947
 ```
 
 | Field | Description | Type |
 | ----- | ----------- | ---- |
 | audio_trim_duration | duration of the wav file in ms | int |
+| audio_trim_autotrim | should this recording be autotrimmed | bool |
 | audio_trim_ishour | is th recording roughly an hour long | bool |
 | audio_trim_good_start | is the first segment within 5min of the start of the recording | bool |
 | audio_trim_good_end | is the end of the last segment withing 10min of the duration of the recording | bool |
 | audio_trim_segments | segment array, delimited by ; | array |
-| audio_trim_segments_no | number of all segments | int |
-| audio_trim_segments_speech_no | number of all speeech segments | int |
+| audio_trim_segments_len | number of all segments | int |
+| audio_trim_segments_speech | number of all speeech segments | int |
 | audio_trim_segments_speech_ms | duration of all speech segments in ms | int |
-| audio_trim_segments_notspeech_no | number of all non speech segments | int |
+| audio_trim_segments_notspeech | number of all non speech segments | int |
 | audio_trim_segments_notspeech_ms | duration of all non speech segments in ms | int |
-| audio_trim_segments_notspeech_used_no | number of used non speech segments | int | 
+| audio_trim_segments_notspeech_used | number of used non speech segments | int |
 | audio_trim_segments_notspeech_used_ms | duration of all used non speech segments in ms | int |
+| audio_trim_model | the name of the model that was used when detecting speech | string |
+| audio_trim_lapel | was a lapel mic detected | float |
 | audio_trim_exec_time | execution time in sec | float |
