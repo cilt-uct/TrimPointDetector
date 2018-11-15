@@ -22,6 +22,8 @@ Usage:
 python detectTrimPoints_woh.py -i /path/to/audio-file.wav -o /path/to/autput-file.txt -non-speech 90
 ```
 
+![Screenshot](screenshot.png)
+
 ```
 usage: detectTrimPoints_woh.py [-h] [--version] -i wav -o txt
                                [--start-speech seconds)]
@@ -49,16 +51,16 @@ optional arguments:
                         [sec] (default: 5, >=)
   --non-speech (seconds)
                         Threshold value for non-speech segments [sec]
-                        (default: 120 >=)
+                        (default: 90 >=)
   --start-adjust (seconds)
                         Adjust the first speech segment start time by a number
-                        of seconds [sec] (default: -15)
+                        of seconds [sec] (default: -20)
   --end-adjust (seconds)
                         Adjust the last speech segments end time by a number
-                        of seconds [sec] (default: 20)
+                        of seconds [sec] (default: 30)
   --start-buffer (seconds)
                         If the start of the segment list is 0 then use this
-                        buffer [sec] (default: 1)
+                        buffer [sec] (default: 3)
   --end-buffer (seconds)
                         If the last segment ends at the end of the wav file
                         adjust by this buffer [sec] (default: 1)
@@ -73,22 +75,27 @@ optional arguments:
 
 Result:
 ```
-audio_trim_duration=3600050
-audio_trim_autotrim=true
+audio_trim_duration=3300000
+audio_trim_autotrim=false
 audio_trim_ishour=true
 audio_trim_good_start=true
 audio_trim_good_end=true
-audio_trim_segments=1000-2697000;3010000-3339000;
-audio_trim_segments_len=304
-audio_trim_segments_speech=152
-audio_trim_segments_speech_ms=2464000
-audio_trim_segments_notspeech=152
-audio_trim_segments_notspeech_ms=1136000
-audio_trim_segments_notspeech_used=1
-audio_trim_segments_notspeech_used_ms=313000
-audio_trim_model=
-audio_trim_lapel=true
-audio_trim_exec_time=80.947
+audio_trim_detected=24-3089-3252-3254
+audio_trim_segments=4000-3089000;3252000-3284000;
+audio_trim_segments_len=218
+audio_trim_segments_speech=109
+audio_trim_segments_speech_ms=2423000
+audio_trim_segments_notspeech=1
+audio_trim_segments_notspeech_ms=163000
+audio_trim_segments_notspeech_used=108
+audio_trim_segments_notspeech_used_ms=2405000
+audio_trim_threshold=3:5;90
+audio_trim_adjust=-20:30
+audio_trim_buffer=3:1
+audio_trim_good=300:600
+audio_trim_model=model_svmNoLapelSpeechModel
+audio_trim_lapel=false
+audio_trim_exec_time=67.93;138.718
 ```
 
 | Field | Description | Type |
@@ -98,6 +105,7 @@ audio_trim_exec_time=80.947
 | audio_trim_ishour | is th recording roughly an hour long | bool |
 | audio_trim_good_start | is the first segment within 5min of the start of the recording | bool |
 | audio_trim_good_end | is the end of the last segment withing 10min of the duration of the recording | bool |
+| audio_trim_detected | Speech segment start, non-speech times and ends with last speech segment, delimited by - | array |
 | audio_trim_segments | segment array, delimited by ; | array |
 | audio_trim_segments_len | number of all segments | int |
 | audio_trim_segments_speech | number of all speeech segments | int |
@@ -106,6 +114,10 @@ audio_trim_exec_time=80.947
 | audio_trim_segments_notspeech_ms | duration of all non speech segments in ms | int |
 | audio_trim_segments_notspeech_used | number of used non speech segments | int |
 | audio_trim_segments_notspeech_used_ms | duration of all used non speech segments in ms | int |
+| audio_trim_threshold | speech threshold start : end ; non speech threshold | array |
+| audio_trim_adjust | adjust start and end time, delimited by :  | array |
+| audio_trim_buffer | trim buffer start and end time, delimited by : | array |
+| audio_trim_good | good start and end time, delimited by : | array |
 | audio_trim_model | the name of the model that was used when detecting speech | string |
 | audio_trim_lapel | was a lapel mic detected | float |
 | audio_trim_exec_time | execution time in sec | float |
