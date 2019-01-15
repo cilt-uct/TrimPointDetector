@@ -209,7 +209,7 @@ if (audio_trim_hour == 1):
             print('found {} segments, speech {} \n'.format(len(my_segments), len(segments_speech)))
 
         # default start/end as detected without threshold check
-        detected_list.append(segments_speech[1].start)
+        detected_list.append(segments_speech[0].start)
         detected_list.append(segments_speech[-1].end)
         for c in segments_non_speech:
             if (args['debug']):
